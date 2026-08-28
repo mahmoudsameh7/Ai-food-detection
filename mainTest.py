@@ -1,30 +1,37 @@
-import cv2
+import argparse
+from pathlib import Path
+
 from tensorflow.keras.models import load_model
-from PIL import Image
-import numpy as np
+
+from prediction import class_name, predict_image
 
 
-model = load_model("braintumor10Epoccategorical.h5")
+PROJECT_DIR = Path(__file__).resolve().parent
 
 
-image = cv2.imread(r"C:\Users\hp\OneDrive\Documents\brain_test\test1\Te-me_0015.jpg")
-img = Image.fromarray(image)
-img = img.resize((64, 64))
-img = np.array(img)
+def main():
+    parser = argparse.ArgumentParser(description="Classify a brain MRI image.")
+    parser.add_argument("image", type=Path, help="Path to the image to classify.")
+    parser.add_argument(
+        "--model",
+        type=Path,
+        default=PROJECT_DIR / "braintumor10Epoccategorical.h5",
+        help="Path to a trained Keras model.",
+    )
+    args = parser.parse_args()
+
+    if not args.image.is_file():
+        raise FileNotFoundError(f"Image not found: {args.image}")
+    if not args.model.is_file():
+        raise FileNotFoundError(f"Model not found: {args.model}")
+
+    model = load_model(args.model)
+    class_id, confidence, probabilities = predict_image(model, args.image)
+
+    print("Raw prediction probabilities:", probabilities)
+    print("Prediction result:", class_id)
+    print(f"Predicted: {class_name(class_id)} ({confidence:.1%})")
 
 
-img = img / 255.0
-
-input_img = np.expand_dims(img, axis=0)
-
-
-prediction = model.predict(input_img)
-print("Raw prediction probabilities:", prediction)
-result = np.argmax(prediction, axis=1)
-print("Prediction result:", result)
-
-
-if result[0] == 0:
-    print("Predicted: NO TUMOR")
-else:
-    print("Predicted: TUMOR")
+if __name__ == "__main__":
+    main()
